@@ -1,0 +1,78 @@
+---
+title: "Ontario School COVID-19 Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: readable
+    vertical_layout: scroll
+
+---
+```{r setup, include=FALSE}
+install.packages("flexdashboard")
+library(flexdashboard)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(DT)
+```
+
+```{r, load data}
+data_url <- "https://data.ontario.ca/dataset/b1fef838-8784-4338-8ef9-ae7cfd405b41/resource/dc5c8788-792f-4f91-a400-036cdf28cfe8/download/schoolrecentcovid2021_2022.csv"
+school_data <- read_csv(data_url)
+daily_cases <- school_data %>%
+    group_by(reported_date) %>%
+    summarise(total_cases = sum(total_confirmed_cases, na.rm = TRUE))
+cumulative_cases <- daily_cases %>%
+    mutate(cumulative = cumsum(total_cases))
+top_boards <- school_data %>%
+    group_by(school_board) %>%
+    summarise(total_cases = sum(total_confirmed_cases, na.rm = TRUE)) %>%
+    arrange(desc(total_cases)) %>%
+    slice_head(n = 10)
+```
+
+### {.row}
+<div style="display: flex; justify-content: space-around; margin-bottom: 1em;">
+  <div style="background:#3498db; color:white; padding:15px; border-radius:5px; width:30%; text-align:center;">
+    Total Student Cases
+    `r sum(school_data$confirmed_student_cases, na.rm = TRUE)`
+  </div>
+  <div style="background:#2ecc71; color:white; padding:15px; border-radius:5px; width:30%; text-align:center;">
+    Total Staff Cases
+    `r sum(school_data$confirmed_staff_cases, na.rm = TRUE)`
+  </div>
+  <div style="background:#f39c12; color:white; padding:15px; border-radius:5px; width:30%; text-align:center;">
+    Unspecified Cases
+    `r sum(school_data$confirmed_unspecified_cases, na.rm = TRUE)`
+  </div>
+</div>
+
+
+
+Row {.tabset .tabset-fade}
+------------------------------------------------------
+### Daily Cases
+```{r}
+ggplot(daily_cases, aes(x = reported_date, y = total_cases)) +
+    geom_line(color = "#2980b9") +
+    labs(title = "Daily Reported Cases", x = "Date", y = "Total Cases") +
+    theme_minimal()
+```
+
+### Cumulative Cases
+```{r}
+ggplot(cumulative_cases, aes(x = reported_date, y = cumulative)) +
+    geom_line(color = "#27ae60") +
+    labs(title = "Cumulative Cases Over Time", x = "Date", y = "Cumulative Cases") +
+    theme_minimal()
+```
+
+### Top School Boards
+```{r}
+ggplot(top_boards, aes(x = reorder(school_board, total_cases), y = total_cases)) +
+    geom_col(fill = "#9b59b6") +
+    coord_flip() +
+    labs(title = "Top 10 School Boards by Total Cases", x = "School Board", y = "Cases") +
+    theme_minimal()
+```
